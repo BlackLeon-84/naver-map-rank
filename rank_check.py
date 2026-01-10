@@ -4,13 +4,17 @@ import re
 from datetime import datetime
 import pytz
 
-# --- 사장님 정보 수정 구간 (여기를 수정하세요) ---
-# [ ["키워드", "찾을매장명"], ["키워드", "찾을매장명"] ] 형식입니다.
+# --- 설정 구간 ---
+# MY_ID는 기존 TELEGRAM_CHAT_ID를 가져오고, FRIEND_ID는 새로 만드신 FRIEND_CHAT_ID를 가져옵니다.
+MY_ID = os.environ.get('TELEGRAM_CHAT_ID')
+FRIEND_ID = os.environ.get('FRIEND_CHAT_ID')
+
 CHECK_LIST = [
-    ["송도아이폰수리", "인천송도아이폰수리24시"], 
-    ["마곡아이폰수리", "마곡 아이폰수리 24시 센터"]
+    ["송도아이폰수리", "인천송도아이폰수리24시", MY_ID, [10, 20]], 
+    ["마곡아이폰수리", "마곡 아이폰수리 24시 센터", MY_ID, [10, 20]],
+    ["강남아이폰수리", "강남아이폰수리24시", FRIEND_ID, [17]]  # ← 여기를 친구 정보로 꼭 수정하세요!
 ]
-# -------------------------------------------
+# ----------------
 
 def get_place_rank(keyword, target_name):
     url = f"https://m.map.naver.com/search2/search.naver?query={keyword}"
@@ -25,18 +29,20 @@ def get_place_rank(keyword, target_name):
         for name in store_names:
             if name not in unique_stores: unique_stores.append(name)
         
-        # 특정 매장 이름이 목록에 있는지 확인
         if target_name in unique_stores:
             return unique_stores.index(target_name) + 1
         return 999
     except:
         return None
 
-def send_telegram(message):
+def send_telegram(message, target_chat_id):
+    # ID가 설정되지 않았거나 친구 ID를 못 불러올 경우를 대비한 안전장치
+    if not target_chat_id:
+        print("알림을 보낼 대상의 Chat ID가 없습니다.")
+        return
     token = os.environ.get('TELEGRAM_TOKEN')
-    chat_id = os.environ.get('TELEGRAM_CHAT_ID')
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    requests.post(url, json={'chat_id': chat_id, 'text': message})
+    requests.post(url, json={'chat_id': target_chat_id, 'text': message})
 
 if __name__ == "__main__":
     korea_tz = pytz.timezone('Asia/Seoul')
@@ -49,24 +55,23 @@ if __name__ == "__main__":
         with open(history_file, "r", encoding="utf-8") as f:
             for line in f:
                 if ":" in line:
-                    k, v = line.strip().split(":")
-                    history_data[k] = int(v)
+                    parts = line.strip().split(":")
+                    if len(parts) == 2:
+                        k, v = parts
+                        history_data[k] = int(v)
 
-    final_messages = []
+    user_messages = {} 
     new_history = []
 
-    # 설정한 리스트를 하나씩 돌면서 체크합니다.
-    for keyword, target_name in CHECK_LIST:
+    for keyword, target_name, target_chat_id, fixed_hours in CHECK_LIST:
         current_rank = get_place_rank(keyword, target_name)
-        
-        # 이전 기록을 찾을 때 키워드를 기준으로 찾습니다.
         last_rank = history_data.get(keyword, 999)
         
         if current_rank is None: continue
         
         is_changed = current_rank != last_rank
-        # 10시, 20시는 무조건 / 그 외 시간은 변동 시에만 알림
-        need_alert = (current_hour == 10 or current_hour == 20) or is_changed
+        # 설정한 고정 시간이거나, 순위가 변동되었을 때만 알림 발생
+        need_alert = (current_hour in fixed_hours) or is_changed
 
         if need_alert:
             rank_text = f"{current_rank}위" if current_rank != 999 else "권외"
@@ -75,13 +80,19 @@ if __name__ == "__main__":
                 msg = f"📍 [{keyword}]\n업체: {target_name}\n순위: {last_rank}위 -> {rank_text} {icon}"
             else:
                 msg = f"📍 [{keyword}]\n업체: {target_name}\n순위: {rank_text} (변동없음)"
-            final_messages.append(msg)
+            
+            # 보낼 사람별로 메시지 분류
+            if target_chat_id not in user_messages:
+                user_messages[target_chat_id] = []
+            user_messages[target_chat_id].append(msg)
         
         new_history.append(f"{keyword}:{current_rank}")
 
-    if final_messages:
+    # 분류된 메시지들을 각각의 주인에게 전송
+    for chat_id, msgs in user_messages.items():
         header = f"⏰ {current_hour}시 순위 리포트\n"
-        send_telegram(header + "\n\n".join(final_messages))
+        send_telegram(header + "\n\n".join(msgs), chat_id)
 
+    # 전체 순위 기록 업데이트
     with open(history_file, "w", encoding="utf-8") as f:
         f.write("\n".join(new_history))
