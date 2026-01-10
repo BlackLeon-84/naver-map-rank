@@ -66,7 +66,7 @@ if __name__ == "__main__":
         
         is_changed = current_rank != last_rank
         # 10시, 20시는 무조건 / 그 외 시간은 변동 시에만 알림
-        need_alert = (current_hour == 10 or current_hour == 20) or is_changed
+        need_alert = (current_hour == 15 or current_hour == 20) or is_changed
 
         if need_alert:
             rank_text = f"{current_rank}위" if current_rank != 999 else "권외"
