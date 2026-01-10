@@ -1,0 +1,21 @@
+name: NaverMapRankCheck
+on:
+  schedule:
+    - cron: '0 0 * * *' # 한국시간 매일 오전 10시
+  workflow_dispatch: # 수동 실행 버튼
+jobs:
+  run_bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Run Script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          pip install requests
+          python rank_check.py
