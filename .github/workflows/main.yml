@@ -1,9 +1,12 @@
 name: NaverMapRankCheck
+
 on:
   schedule:
-    # 한국 시간 기준: 10:00, 13:00, 20:00 실행
-    - cron: '0 1,4,11 * * *'
+    # 한국 시간 기준 실행: 
+    # 10:00(1시), 13:00(4시), 17:00(8시), 20:00(11시)
+    - cron: '0 1,4,8,11 * * *'
   workflow_dispatch:
+
 jobs:
   run_bot:
     runs-on: ubuntu-latest
@@ -11,17 +14,22 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+
       - name: Run Script
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 이 부분이 추가되어야 파이썬 코드가 친구 ID를 인식합니다.
+          FRIEND_CHAT_ID: ${{ secrets.FRIEND_CHAT_ID }} 
         run: |
           pip install requests pytz
           python rank_check.py
+
       - name: Commit and Push
         run: |
           git config --global user.name "github-actions[bot]"
