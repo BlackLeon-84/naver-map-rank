@@ -1,0 +1,10 @@
+[Unit]
+Description=Naver map rank Telegram report
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/DATA/Documents/project/naverblog/rank-monitor-src
+EnvironmentFile=/home/edith/.config/naver-map-rank.env
+ExecStart=/DATA/Documents/project/naverblog/rank-monitor-src/.venv/bin/python /DATA/Documents/project/naverblog/rank-monitor-src/rank_check.py

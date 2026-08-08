@@ -10,11 +10,14 @@ MY_ID = os.environ.get('TELEGRAM_CHAT_ID')
 FRIEND_ID = os.environ.get('FRIEND_CHAT_ID')
 
 CHECK_LIST = [
-    ["송도아이폰수리", "인천송도아이폰수리24시", MY_ID, [8, 9, 10, 19, 20]], 
-    ["마곡아이폰수리", "마곡 아이폰수리 24시 센터", MY_ID, [8, 9, 10, 19, 20]],
-    ["강남아이폰수리", "강남아이폰수리24시", FRIEND_ID, [16, 17, 18]]
+    ["송도아이폰수리", "인천송도아이폰수리24시", MY_ID, [9, 19]],
+    ["마곡아이폰수리", "마곡 아이폰수리 24시 센터", MY_ID, [9, 19]],
+    ["강남아이폰수리", "강남아이폰수리24시", FRIEND_ID, [17]]
 ]
 # ----------------
+
+def should_alert(current_rank, last_rank, current_hour, fixed_hours):
+    return current_hour in fixed_hours or current_rank != last_rank
 
 def get_place_rank(keyword, target_name):
     url = f"https://m.map.naver.com/search2/search.naver?query={keyword}"
@@ -71,7 +74,7 @@ if __name__ == "__main__":
         
         is_changed = current_rank != last_rank
         # 설정한 고정 시간이거나, 순위가 변동되었을 때만 알림 발생
-        need_alert = (current_hour in fixed_hours) or is_changed
+        need_alert = should_alert(current_rank, last_rank, current_hour, fixed_hours)
 
         if need_alert:
             rank_text = f"{current_rank}위" if current_rank != 999 else "권외"
@@ -90,7 +93,7 @@ if __name__ == "__main__":
 
     # 분류된 메시지들을 각각의 주인에게 전송
     for chat_id, msgs in user_messages.items():
-        header = f"⏰ {current_hour}시 순위 리포트\n"
+        header = f"⏰ {now.strftime('%H:%M')} 순위 리포트\n"
         send_telegram(header + "\n\n".join(msgs), chat_id)
 
     # 전체 순위 기록 업데이트
